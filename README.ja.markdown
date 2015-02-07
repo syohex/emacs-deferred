@@ -407,7 +407,7 @@ Loop and animation:
       * command: 外部実行コマンド
       * args: コマンドの引数(可変長)
    * 返値：deferredオブジェクト
-   * 外部コマンドを非同期で実行します。（start-process, start-process-shell-command のラッパー）
+   * 外部コマンドを非同期で実行します。（start-file-process, start-file-process-shell-command のラッパー）
    * 外部コマンドのstdoutの結果が文字列として後続のdeferredに渡ります。
 
 * deferred:process-buffer (command args...) / deferred:process-shell-buffer (command args...)
@@ -415,7 +415,7 @@ Loop and animation:
       * command: 外部実行コマンド
       * args: コマンドの引数(可変長)
    * 返値：deferredオブジェクト
-   * 外部コマンドを非同期で実行します。（start-process, start-process-shell-command のラッパー）
+   * 外部コマンドを非同期で実行します。（start-file-process, start-file-process-shell-command のラッパー）
    * 外部コマンドのstdoutの結果がバッファとして後続のdeferredに渡ります。
       * バッファの処分は後続のdeferredに任されます。
 
