@@ -28,7 +28,9 @@
             (:send-report nil)
             (:report-file "/tmp/undercover-report.json"))
 (require 'deferred)
-(require 'cl)
+(eval-when-compile
+  (require 'cl))
+(require 'cl-lib)
 (require 'pp)
 
 (defmacro should= (a &rest b)
@@ -41,10 +43,10 @@
 
 (defmacro $ (&rest elements)
   `(let (it)
-     ,@(loop for i in elements
-             with it = nil
-             collect
-             `(setq it ,i))
+     ,@(cl-loop for i in elements
+                with it = nil
+                collect
+                `(setq it ,i))
      it))
 
 (defmacro dnew(&rest aforms)

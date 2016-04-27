@@ -35,7 +35,7 @@ Thread:
   (cc:thread
    60
    (message "Animation started.")
-   (while (> end (incf count))
+   (while (> end (cl-incf count))
      (save-excursion
        (when (< 1 count)
          (goto-char pos) (delete-char 1))
@@ -201,7 +201,7 @@ Signal:
 (cc:signal-connect
  channel t  ; The signal symbol 't' means any signals.
  (lambda (event)
-   (destructuring-bind (event-name (args)) event
+   (cl-destructuring-bind (event-name (args)) event
      (message "Listener : %S / %S" event-name args))))
 
 (deferred:$ ; Connect the deferred task.
@@ -339,7 +339,7 @@ one can use the different scope signals in the tree structure of the channel obj
       * None
    * Send a signal to the channel.
    * If the `args` are given, observers can get the values by following code:
-      * `(lambda (event) (destructuring-bind (event-sym (args)) event ... ))`
+      * `(lambda (event) (cl-destructuring-bind (event-sym (args)) event ... ))`
 
 * cc:signal-send-global (channel event-sym &rest args)
    * Arguments

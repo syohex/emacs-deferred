@@ -144,13 +144,13 @@ Parallel deferred:
       (deferred:url-retrieve "http://www.google.co.jp/images/srpr/nav_logo14.png")))
   (deferred:nextc it
     (lambda (buffers)
-      (loop for i in buffers
-            do
-            (insert
-             (format
-              "size: %s\n"
-              (with-current-buffer i (length (buffer-string)))))
-            (kill-buffer i)))))
+      (cl-loop for i in buffers
+               do
+               (insert
+                (format
+                 "size: %s\n"
+                 (with-current-buffer i (length (buffer-string)))))
+               (kill-buffer i)))))
 ```
 
 * The function `deferred:parallel` runs asynchronous tasks concurrently.
@@ -289,7 +289,7 @@ Loop and animation:
             (goto-char pos) (delete-char 1))
           (insert (char-to-string
                    (aref anm (% count (length anm))))))
-        (if (> end (incf count)) ; return nil to stop this loop
+        (if (> end (cl-incf count)) ; return nil to stop this loop
             (deferred:nextc (deferred:wait wait-time) self)))) ; return the deferred
 
     (deferred:nextc it

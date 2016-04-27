@@ -35,7 +35,7 @@ fib-list ;=> (3 2 1 1 0)
   (cc:thread
    60
    (message "Animation started.")
-   (while (> end (incf count))
+   (while (> end (cl-incf count))
      (save-excursion
        (when (< 1 count)
          (goto-char pos) (delete-char 1))

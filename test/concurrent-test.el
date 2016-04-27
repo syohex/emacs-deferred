@@ -24,7 +24,9 @@
             (:send-report nil)
             (:report-file "/tmp/undercover-report.json"))
 (require 'concurrent)
-(require 'cl)
+(eval-when-compile
+  (require 'cl))
+(require 'cl-lib)
 (require 'pp)
 (require 'ert)
 
@@ -60,7 +62,7 @@
                  (if (= x 55) t
                    (format "Fib 10 = 55 -> %s" x))))
               (t
-               (incf count)
+               (cl-incf count)
                (deferred:call gen))))))
     (setq gen (cc:fib-gen cc))
     (deferred:call gen)
@@ -79,7 +81,7 @@
     (cc:thread
      60
      (push 2 result)
-     (while (> end (incf count))
+     (while (> end (cl-incf count))
        (when (= 0 (% count 10))
          (push count result)))
      (push 99 result)
@@ -125,8 +127,8 @@
       (deferred:nextc it
         (lambda (x)
           (push 7 result)
-          (loop for i in (cc:semaphore-release-all smp)
-                do (deferred:callback i 'canceled))
+          (cl-loop for i in (cc:semaphore-release-all smp)
+                   do (deferred:callback i 'canceled))
           (push 8 result)))
       (deferred:nextc it
         (lambda (x)
@@ -175,7 +177,7 @@
                  (push 'e result)
                  (error "SMP CC ERR"))))
      (lambda (e)
-       (destructuring-bind (sym msg) e
+       (cl-destructuring-bind (sym msg) e
          (when (and (eq 'error sym) (equal "SMP CC ERR" msg))
            (push 'f result)))))
 
@@ -334,8 +336,8 @@
                         result))))
        (dfenv (cc:dataflow-environment)))
 
-    (loop for i in '(get get-first get-waiting set clear clear-all)
-          do (cc:dataflow-connect dfenv i (lambda (ev) (push ev result))))
+    (cl-loop for i in '(get get-first get-waiting set clear clear-all)
+             do (cc:dataflow-connect dfenv i (lambda (ev) (push ev result))))
 
     (push (cons 2 (cc:dataflow-get-sync dfenv "aaa")) result)
 
@@ -572,40 +574,40 @@
   (setq cc:test-fails 0)
   (deferred:$
     (deferred:parallel
-      (loop for i in '(cc:test-fib-gen
-                       cc:test-thread
-                       cc:test-semaphore1
-                       cc:test-semaphore2
-                       cc:test-dataflow-simple1
-                       cc:test-dataflow-simple2
-                       cc:test-dataflow-simple3
-                       cc:test-dataflow-simple4
-                       cc:test-dataflow-signal
-                       cc:test-dataflow-parent1
-                       cc:test-dataflow-parent2
-                       cc:test-signal1
-                       cc:test-signal2
-                       )
-            collect (cons i (deferred:timeout 5000 "timeout" (funcall i)))))
+      (cl-loop for i in '(cc:test-fib-gen
+                          cc:test-thread
+                          cc:test-semaphore1
+                          cc:test-semaphore2
+                          cc:test-dataflow-simple1
+                          cc:test-dataflow-simple2
+                          cc:test-dataflow-simple3
+                          cc:test-dataflow-simple4
+                          cc:test-dataflow-signal
+                          cc:test-dataflow-parent1
+                          cc:test-dataflow-parent2
+                          cc:test-signal1
+                          cc:test-signal2
+                          )
+               collect (cons i (deferred:timeout 5000 "timeout" (funcall i)))))
     (deferred:nextc it
       (lambda (results)
         (pop-to-buffer
          (with-current-buffer (get-buffer-create "*cc:test*")
            (erase-buffer)
-           (loop for i in results
-                 for name = (car i)
-                 for result = (cdr i)
-                 with fails = 0
-                 do (insert (format "%s : %s\n" name
-                                    (if (eq t result) "OK"
-                                      (format "FAIL > %s" result))))
-                 (unless (eq t result) (incf fails))
-                 finally
-                 (goto-char (point-min))
-                 (insert (format "Test Finished : %s\nTests Fails: %s / %s\n"
-                                 (format-time-string   "%Y/%m/%d %H:%M:%S" (current-time))
-                                 fails (length results)))
-                 (setq cc:test-fails fails))
+           (cl-loop for i in results
+                    for name = (car i)
+                    for result = (cdr i)
+                    with fails = 0
+                    do (insert (format "%s : %s\n" name
+                                       (if (eq t result) "OK"
+                                         (format "FAIL > %s" result))))
+                    (unless (eq t result) (cl-incf fails))
+                    finally
+                    (goto-char (point-min))
+                    (insert (format "Test Finished : %s\nTests Fails: %s / %s\n"
+                                    (format-time-string   "%Y/%m/%d %H:%M:%S" (current-time))
+                                    fails (length results)))
+                    (setq cc:test-fails fails))
            (message (buffer-string))
            (current-buffer)))
         (setq cc:test-finished-flag t))))

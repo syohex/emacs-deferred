@@ -31,7 +31,7 @@ Thread:
   (cc:thread
    60
    (message "Animation started.")
-   (while (> end (incf count))
+   (while (> end (cl-incf count))
      (save-excursion
        (when (< 1 count)
          (goto-char pos) (delete-char 1))
@@ -185,7 +185,7 @@ cc:signal-channel でシグナルを流すチャンネルを作成します。�
 (cc:signal-connect
  channel t  ; t にするとすべてのシグナルを拾う
  (lambda (event)
-   (destructuring-bind (event-name (args)) event
+   (cl-destructuring-bind (event-name (args)) event
      (message "Listener : %S / %S" event-name args))))
 
 (deferred:$ ; deferred で非同期タスクを接続できる
@@ -307,7 +307,7 @@ signalやdataflowは、カスケード接続して親子関係を構築できま
       * args: イベント引数
    * 返値：なし
    * シグナルを発信します。
-   * args は、受信側で (lambda (event) (destructuring-bind (event-sym (args)) event ... )) のようにすると受け取れます。
+   * args は、受信側で (lambda (event) (cl-destructuring-bind (event-sym (args)) event ... )) のようにすると受け取れます。
 
 
 * cc:signal-send-global (channel event-sym &rest args)
