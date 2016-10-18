@@ -28,8 +28,11 @@
             (:send-report nil)
             (:report-file "/tmp/undercover-report.json"))
 (require 'deferred)
-(require 'cl)
+(require 'cl-lib)
 (require 'pp)
+
+(eval-when-compile
+  (require 'cl))
 
 (defmacro should= (a &rest b)
   `(should (equal ,a (progn ,@b)))
