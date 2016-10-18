@@ -1,4 +1,4 @@
-;;; concurrent.el --- Concurrent utility functions for emacs lisp
+;;; concurrent.el --- Concurrent utility functions for emacs lisp -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2010-2016  SAKURAI Masashi
 
@@ -33,9 +33,6 @@
 ;; - Signal/Channel
 
 (require 'cl-lib)
-(eval-when-compile
-  (require 'cl))
-
 (require 'deferred)
 
 (defvar cc:version nil "version number")
@@ -98,7 +95,7 @@ means calling callback function CALLBACK."
   (let ((chain (cl-gensym))
         (cc (cl-gensym))
         (waiter (cl-gensym)))
-    `(lexical-let*
+    `(let*
          (,chain
           (,cc ,callback)
           (,waiter (deferred:new))
@@ -146,7 +143,7 @@ CHAIN is the previous deferred task."
   "Return a thread object."
   (let ((chain (cl-gensym))
         (dstart (cl-gensym)))
-    `(lexical-let*
+    `(let*
          (,chain
           (,dstart (deferred:new)))
        (setq ,chain ,dstart)
@@ -203,13 +200,12 @@ permission is returned, the task is executed."
 
 (defun cc:semaphore-with (semaphore body-func &optional error-func)
   "Execute the task BODY-FUNC asynchronously with the semaphore block."
-  (lexical-let ((semaphore semaphore))
-    (deferred:try
-      (deferred:nextc (cc:semaphore-acquire semaphore) body-func)
-      :catch
-      error-func
-      :finally
-      (lambda (_x) (cc:semaphore-release semaphore)))))
+  (deferred:try
+    (deferred:nextc (cc:semaphore-acquire semaphore) body-func)
+    :catch
+    error-func
+    :finally
+    (lambda (_x) (cc:semaphore-release semaphore))))
 (put 'cc:semaphore-with 'lisp-indent-function 1)
 
 (defun cc:semaphore-release-all (semaphore)
@@ -242,12 +238,11 @@ This function is used for the interruption cases."
 NAME is a channel name for debug.
 PARENT-CHANNEL is an upstream channel. The observers of this channel can receive the upstream signals.
 In the case of using the function `cc:signal-send', the observers of the upstream channel can not receive the signals of this channel. The function `cc:signal-send-global' can send a signal to the upstream channels from the downstream channels."
-  (lexical-let
-      ((ch (cons
-            (or name (format "signal%s" (deferred:uid))) ; name for debug
-            (cons
-             parent-channel ; parent-channel
-             nil)))) ; observers
+  (let ((ch (cons
+             (or name (format "signal%s" (deferred:uid))) ; name for debug
+             (cons
+              parent-channel            ; parent-channel
+              nil))))                   ; observers
     (when parent-channel
       (cc:signal-connect
        parent-channel
@@ -373,18 +368,17 @@ CHANNEL is a channel object that sends signals of variable events. Observers can
 
 (defun cc:dataflow-init-connect (df)
   "[internal] Initialize the channel object."
-  (lexical-let ((df df))
-    (cc:dataflow-connect
-     df 'set
-     (lambda (args)
-       (cl-destructuring-bind (_event (key)) args
-         (let* ((obj (cc:dataflow-get-object-for-value df key))
-                (value (and obj (cc:dataflow-value obj))))
-           (when obj
-             (cl-loop for i in (cc:aif (cc:dataflow-get-object-for-deferreds df key)
-                                       (cc:dataflow-deferred-list it) nil)
-                      do (deferred:callback-post i value))
-             (setf (cc:dataflow-deferred-list obj) nil))))))))
+  (cc:dataflow-connect
+   df 'set
+   (lambda (args)
+     (cl-destructuring-bind (_event (key)) args
+       (let* ((obj (cc:dataflow-get-object-for-value df key))
+              (value (and obj (cc:dataflow-value obj))))
+         (when obj
+           (cl-loop for i in (cc:aif (cc:dataflow-get-object-for-deferreds df key)
+                                     (cc:dataflow-deferred-list it) nil)
+                    do (deferred:callback-post i value))
+           (setf (cc:dataflow-deferred-list obj) nil)))))))
 
 (defun cc:dataflow-get-object-for-value (df key)
   "[internal] Return an entry object that is indicated by KEY.

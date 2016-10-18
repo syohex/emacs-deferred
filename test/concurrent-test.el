@@ -1,4 +1,4 @@
-;;; test code for concurrent.el
+;;; test code for concurrent.el -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2010  SAKURAI Masashi
 ;; Author: SAKURAI Masashi <m.sakurai at kiwanami.net>
@@ -38,33 +38,32 @@
 ;; generator
 
 (defun cc:fib-gen (callback)
-  (lexical-let ((a1 0) (a2 1)
-                (callback callback))
-        (cc:generator
-         callback
-         (yield a1)
-         (yield a2)
-         (while t
-           (let ((next (+ a1 a2)))
-             (setq a1 a2
-                   a2 next)
-             (yield next))))))
+  (let ((a1 0) (a2 1)
+        (callback callback))
+    (cc:generator
+     callback
+     (yield a1)
+     (yield a2)
+     (while t
+       (let ((next (+ a1 a2)))
+         (setq a1 a2
+               a2 next)
+         (yield next))))))
 
 (defun cc:test-fib-gen ()
-  (lexical-let*
-      ((count 0)
-       (dfinish (deferred:new))
-       gen
-       (cc (lambda (x)
-             (cond
-              ((= count 10)
-               (deferred:callback
-                 dfinish
-                 (if (= x 55) t
-                   (format "Fib 10 = 55 -> %s" x))))
-              (t
-               (incf count)
-               (deferred:call gen))))))
+  (let* ((count 0)
+         (dfinish (deferred:new))
+         gen
+         (cc (lambda (x)
+               (cond
+                ((= count 10)
+                 (deferred:callback
+                   dfinish
+                   (if (= x 55) t
+                     (format "Fib 10 = 55 -> %s" x))))
+                (t
+                 (incf count)
+                 (deferred:call gen))))))
     (setq gen (cc:fib-gen cc))
     (deferred:call gen)
     dfinish))
@@ -74,10 +73,9 @@
 ;; thread
 
 (defun cc:test-thread ()
-  (lexical-let
-      ((dfinish (deferred:new))
-       (result nil) (start-time (float-time))
-       (count 0) (end 20))
+  (let ((dfinish (deferred:new))
+        (result nil) (start-time (float-time))
+        (count 0) (end 20))
     (push 1 result)
     (cc:thread
      60
@@ -98,14 +96,13 @@
 ;; semaphore
 
 (defun cc:test-semaphore1 ()
-  (lexical-let*
-      ((result nil)
-       (dfinish (deferred:new
-                  (lambda (x)
-                    (setq result (reverse result))
-                    (or (equal '(1 2 5 6 (size . 1) 3 7 8 canceled (size . 0)) result)
-                        result))))
-       (smp (cc:semaphore-create 1)))
+  (let* ((result nil)
+         (dfinish (deferred:new
+                    (lambda (x)
+                      (setq result (reverse result))
+                      (or (equal '(1 2 5 6 (size . 1) 3 7 8 canceled (size . 0)) result)
+                          result))))
+         (smp (cc:semaphore-create 1)))
 
     (push 1 result)
 
@@ -142,14 +139,13 @@
 ;; (cc:debug (cc:test-semaphore1) "Semaphore1 : %s" x)
 
 (defun cc:test-semaphore2 ()
-  (lexical-let*
-      ((result nil)
-       (dfinish (deferred:new
-                  (lambda (x)
-                    (setq result (reverse result))
-                    (or (equal '(0 a b c d e f g) result)
-                        result))))
-       (smp (cc:semaphore-create 1)))
+  (let* ((result nil)
+         (dfinish (deferred:new
+                    (lambda (x)
+                      (setq result (reverse result))
+                      (or (equal '(0 a b c d e f g) result)
+                          result))))
+         (smp (cc:semaphore-create 1)))
 
     (push 0 result)
 
@@ -171,12 +167,12 @@
                (push 'g result)
                (cc:semaphore-release smp)
                (deferred:callback dfinish)))
-             (push 'd result)
-             (deferred:nextc
-               (deferred:wait 100)
-               (lambda (x)
-                 (push 'e result)
-                 (error "SMP CC ERR"))))
+           (push 'd result)
+           (deferred:nextc
+             (deferred:wait 100)
+             (lambda (x)
+               (push 'e result)
+               (error "SMP CC ERR"))))
      (lambda (e)
        (cl-destructuring-bind (sym msg) e
          (when (and (eq 'error sym) (equal "SMP CC ERR" msg))
@@ -189,14 +185,13 @@
 ;; Dataflow
 
 (defun cc:test-dataflow-simple1 ()
-  (lexical-let*
-      ((result '(1))
-       (dfinish (deferred:new
-                  (lambda (x)
-                    (setq result (reverse result))
-                    (or (equal '(1 (2 . nil) 4 5 (3 . 256) (6 . 256) (7 . nil)) result)
-                        result))))
-       (dfenv (cc:dataflow-environment)))
+  (let* ((result '(1))
+         (dfinish (deferred:new
+                    (lambda (x)
+                      (setq result (reverse result))
+                      (or (equal '(1 (2 . nil) 4 5 (3 . 256) (6 . 256) (7 . nil)) result)
+                          result))))
+         (dfenv (cc:dataflow-environment)))
 
     (push (cons 2 (cc:dataflow-get-sync dfenv "aaa")) result)
 
@@ -226,13 +221,12 @@
 ;; (cc:debug (cc:test-dataflow-simple1) "Dataflow1 : %s" x)
 
 (defun cc:test-dataflow-simple2 ()
-  (lexical-let*
-      ((result nil)
-       (dfinish (deferred:new
-                  (lambda (x)
-                    (or (equal '("a.jpg:300 OK jpeg") result)
-                        result))))
-       (dfenv (cc:dataflow-environment)))
+  (let* ((result nil)
+         (dfinish (deferred:new
+                    (lambda (x)
+                      (or (equal '("a.jpg:300 OK jpeg") result)
+                          result))))
+         (dfenv (cc:dataflow-environment)))
 
     (deferred:$
       (cc:dataflow-get dfenv '("http://example.com/a.jpg" 300))
@@ -249,13 +243,12 @@
 ;; (cc:debug (cc:test-dataflow-simple2) "Dataflow2 : %s" x)
 
 (defun cc:test-dataflow-simple3 ()
-  (lexical-let*
-      ((result nil)
-       (dfinish (deferred:new
-                  (lambda (x)
-                    (or (equal '(">> 384") result)
-                        result))))
-       (dfenv (cc:dataflow-environment)))
+  (let* ((result nil)
+         (dfinish (deferred:new
+                    (lambda (x)
+                      (or (equal '(">> 384") result)
+                          result))))
+         (dfenv (cc:dataflow-environment)))
 
     (deferred:$
       (deferred:parallel
@@ -282,13 +275,12 @@
 ;; (cc:debug (cc:test-dataflow-simple3) "Dataflow3 : %s" x)
 
 (defun cc:test-dataflow-simple4 ()
-  (lexical-let*
-      ((result nil)
-       (dfinish (deferred:new
-                  (lambda (x)
-                    (or (equal '(">> 3") result)
-                        result))))
-       (dfenv (cc:dataflow-environment)))
+  (let* ((result nil)
+         (dfinish (deferred:new
+                    (lambda (x)
+                      (or (equal '(">> 3") result)
+                          result))))
+         (dfenv (cc:dataflow-environment)))
 
     (deferred:$
       (deferred:parallel
@@ -314,28 +306,27 @@
 ;; (cc:debug (cc:test-dataflow-simple4) "Dataflow4 : %s" x)
 
 (defun cc:test-dataflow-signal ()
-  (lexical-let*
-      ((result '(1))
-       (dfinish (deferred:new
-                  (lambda (x)
-                    (setq result (reverse result))
-                    (or (equal
-                         '(1
-                           (2 . nil)
-                           (get-first ("abc"))
-                           (get-waiting ("abc"))
-                           4 5
-                           (set ("abc"))
-                           (3 . 256)
-                           6 7
-                           (get ("abc"))
-                           (8 . 256)
-                           (9 . nil)
-                           (clear ("abc"))
-                           (clear-all (nil))
-                           ) result)
-                        result))))
-       (dfenv (cc:dataflow-environment)))
+  (let* ((result '(1))
+         (dfinish (deferred:new
+                    (lambda (x)
+                      (setq result (reverse result))
+                      (or (equal
+                           '(1
+                             (2 . nil)
+                             (get-first ("abc"))
+                             (get-waiting ("abc"))
+                             4 5
+                             (set ("abc"))
+                             (3 . 256)
+                             6 7
+                             (get ("abc"))
+                             (8 . 256)
+                             (9 . nil)
+                             (clear ("abc"))
+                             (clear-all (nil))
+                             ) result)
+                          result))))
+         (dfenv (cc:dataflow-environment)))
 
     (cl-loop for i in '(get get-first get-waiting set clear clear-all)
              do (cc:dataflow-connect dfenv i (lambda (ev) (push ev result))))
@@ -377,23 +368,22 @@
 
 
 (defun cc:test-dataflow-parent1 ()
-  (lexical-let*
-      ((result '(1))
-       (dfinish (deferred:new
-                  (lambda (x)
-                    (setq result (reverse result))
-                    (or (equal
-                         '(1
-                           (available-parent . (("abc" . 128)))
-                           (available-child . (("abc" . 128)))
-                           (waiting-parent . nil)
-                           (waiting-child . ("aaa"))
-                           (get-sync . 256)
-                           (get . 256)
-                           ) result)
-                        result))))
-       (dfenv-parent (cc:dataflow-environment))
-       (dfenv (cc:dataflow-environment dfenv-parent)))
+  (let* ((result '(1))
+         (dfinish (deferred:new
+                    (lambda (x)
+                      (setq result (reverse result))
+                      (or (equal
+                           '(1
+                             (available-parent . (("abc" . 128)))
+                             (available-child . (("abc" . 128)))
+                             (waiting-parent . nil)
+                             (waiting-child . ("aaa"))
+                             (get-sync . 256)
+                             (get . 256)
+                             ) result)
+                          result))))
+         (dfenv-parent (cc:dataflow-environment))
+         (dfenv (cc:dataflow-environment dfenv-parent)))
 
     (cc:dataflow-set dfenv-parent "abc" 128)
 
@@ -422,16 +412,15 @@
 ;; (cc:debug (cc:test-dataflow-parent1) "Dataflow Parent1 : %s" x)
 
 (defun cc:test-dataflow-parent2 ()
-  (lexical-let*
-      ((result '())
-       (dfinish (deferred:new
-                  (lambda (x)
-                    (setq result (reverse result))
-                    (or (equal
-                         '("parent get 256" "child get 256") result)
-                        result))))
-       (dfenv-parent (cc:dataflow-environment))
-       (dfenv (cc:dataflow-environment dfenv-parent)))
+  (let* ((result '())
+         (dfinish (deferred:new
+                    (lambda (x)
+                      (setq result (reverse result))
+                      (or (equal
+                           '("parent get 256" "child get 256") result)
+                          result))))
+         (dfenv-parent (cc:dataflow-environment))
+         (dfenv (cc:dataflow-environment dfenv-parent)))
 
     (deferred:$
       (deferred:parallel
@@ -456,20 +445,19 @@
 ;; Signal
 
 (defun cc:test-signal1 ()
-  (lexical-let*
-      ((result '())
-       (dfinish (deferred:new
-                  (lambda (x)
-                    (setq result (reverse result))
-                    (or (equal
-                          '(
-                            (ls ev1 (1))
-                            (sig ev1 (1))
-                            (ls ev2 (2))
-                            (def ev1 (1))
-                            ) result)
-                        result))))
-       (channel (cc:signal-channel "child")))
+  (let* ((result '())
+         (dfinish (deferred:new
+                    (lambda (x)
+                      (setq result (reverse result))
+                      (or (equal
+                           '(
+                             (ls ev1 (1))
+                             (sig ev1 (1))
+                             (ls ev2 (2))
+                             (def ev1 (1))
+                             ) result)
+                          result))))
+         (channel (cc:signal-channel "child")))
 
     (cc:signal-connect channel 'ev1
                        (lambda (event)
@@ -500,35 +488,34 @@
 ;; (cc:debug (cc:test-signal2) "Signal2 : %s" x)
 
 (defun cc:test-signal2 ()
-  (lexical-let*
-      ((result nil)
-       (dfinish (deferred:new
-                  (lambda (x)
-                    (setq result (reverse result))
-                    (or (equal
-                         '(
-                           (pls pev1 (1))
-                           (psig pev1 (1))
-                           (pls ev1 (2))
-                           (ls ev1 (3))
-                           (sig ev1 (3))
-                           (pls ev2 (4))
-                           (pls ev2 (5))
+  (let* ((result nil)
+         (dfinish (deferred:new
+                    (lambda (x)
+                      (setq result (reverse result))
+                      (or (equal
+                           '(
+                             (pls pev1 (1))
+                             (psig pev1 (1))
+                             (pls ev1 (2))
+                             (ls ev1 (3))
+                             (sig ev1 (3))
+                             (pls ev2 (4))
+                             (pls ev2 (5))
 
-                           (ls pev1 (1))
-                           (ls ev1 (2))
+                             (ls pev1 (1))
+                             (ls ev1 (2))
 
-                           (sig ev1 (2))
-                           (def ev1 (3))
-                           (ls ev2 (4))
-                           (ls ev2 (5))
+                             (sig ev1 (2))
+                             (def ev1 (3))
+                             (ls ev2 (4))
+                             (ls ev2 (5))
 
-                           (def ev1 (2))
-                           )
-                         result)
-                        result))))
-       (parent-channel (cc:signal-channel "parent"))
-       (channel (cc:signal-channel "child" parent-channel)))
+                             (def ev1 (2))
+                             )
+                           result)
+                          result))))
+         (parent-channel (cc:signal-channel "parent"))
+         (channel (cc:signal-channel "child" parent-channel)))
 
     (cc:signal-connect parent-channel 'pev1
                        (lambda (event)

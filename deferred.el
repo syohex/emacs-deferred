@@ -1,4 +1,4 @@
-;;; deferred.el --- Simple asynchronous functions for emacs lisp
+;;; deferred.el --- Simple asynchronous functions for emacs lisp -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2010-2016 SAKURAI Masashi
 
@@ -97,7 +97,7 @@
   (declare (debug ("args" form &rest form)))
   (let ((argsyms (cl-loop repeat (length args) collect (cl-gensym))))
   `(lambda (,@argsyms)
-     (lexical-let (self)
+     (let (self)
        (setq self (lambda( ,@args ) ,@body))
        (funcall self ,@argsyms)))))
 
@@ -257,8 +257,8 @@ Mainly this function is called by timer asynchronously."
   "Wait for the given deferred task. For test and debugging.
 Error is raised if it is not processed within deferred chain D."
   (progn
-    (lexical-let ((last-value 'deferred:undefined*)
-                  uncaught-error)
+    (let ((last-value 'deferred:undefined*)
+          uncaught-error)
       (deferred:try
         (deferred:nextc d
           (lambda (x) (setq last-value x)))
@@ -473,19 +473,16 @@ The watch task CALLBACK can not affect deferred chains with
 return values. This function is used in following purposes,
 simulation of try-finally block in asynchronous tasks, progress
 monitoring of tasks."
-  (lexical-let*
-      ((callback callback)
-       (normal (lambda (x) (ignore-errors (deferred:call-lambda callback x)) x))
-       (err    (lambda (e)
-                 (ignore-errors (deferred:call-lambda callback e))
-                 (deferred:resignal e))))
+  (let* ((normal (lambda (x) (ignore-errors (deferred:call-lambda callback x)) x))
+         (err    (lambda (e)
+                   (ignore-errors (deferred:call-lambda callback e))
+                   (deferred:resignal e))))
     (let ((nd (make-deferred :callback normal :errorback err)))
       (deferred:set-next d nd))))
 
 (defun deferred:wait (msec)
   "Return a deferred object scheduled at MSEC millisecond later."
-  (lexical-let
-      ((d (deferred:new)) (start-time (float-time)) timer)
+  (let ((d (deferred:new)) (start-time (float-time)) timer)
     (deferred:message "WAIT : %s" msec)
     (setq timer (deferred:setTimeout
                   (lambda ()
@@ -501,8 +498,7 @@ monitoring of tasks."
 (defun deferred:wait-idle (msec)
   "Return a deferred object which will run when Emacs has been
 idle for MSEC millisecond."
-  (lexical-let
-      ((d (deferred:new)) (start-time (float-time)) timer)
+  (let ((d (deferred:new)) (start-time (float-time)) timer)
     (deferred:message "WAIT-IDLE : %s" msec)
     (setq timer
           (deferred:run-with-idle-timer
@@ -519,17 +515,15 @@ idle for MSEC millisecond."
 
 (defun deferred:call (f &rest args)
   "Call the given function asynchronously."
-  (lexical-let ((f f) (args args))
-    (deferred:next
-      (lambda (_x)
-        (apply f args)))))
+  (deferred:next
+    (lambda (_x)
+      (apply f args))))
 
 (defun deferred:apply (f &optional args)
   "Call the given function asynchronously."
-  (lexical-let ((f f) (args args))
-    (deferred:next
-      (lambda (_x)
-        (apply f args)))))
+  (deferred:next
+    (lambda (_x)
+      (apply f args))))
 
 
 
@@ -545,27 +539,26 @@ idle for MSEC millisecond."
   "Return a iteration deferred object."
   (deferred:message "LOOP : %s" times-or-seq)
   (if (deferred:empty-p times-or-seq) (deferred:next)
-    (lexical-let*
-        (items (rd
-                (cond
-                 ((numberp times-or-seq)
-                  (cl-loop for i from 0 below times-or-seq
-                           with ld = (deferred:next)
-                           do
-                           (push ld items)
-                           (setq ld
-                                 (lexical-let ((i i) (func func))
-                                   (deferred:nextc ld (lambda (_x) (deferred:call-lambda func i)))))
-                           finally return ld))
-                 ((sequencep times-or-seq)
-                  (cl-loop for i in (append times-or-seq nil) ; seq->list
-                           with ld = (deferred:next)
-                           do
-                           (push ld items)
-                           (setq ld
-                                 (lexical-let ((i i) (func func))
-                                   (deferred:nextc ld (lambda (_x) (deferred:call-lambda func i)))))
-                           finally return ld)))))
+    (let* (items (rd
+                  (cond
+                   ((numberp times-or-seq)
+                    (cl-loop for i from 0 below times-or-seq
+                             with ld = (deferred:next)
+                             do
+                             (push ld items)
+                             (setq ld
+                                   (let ((i i))
+                                     (deferred:nextc ld (lambda (_x) (deferred:call-lambda func i)))))
+                             finally return ld))
+                   ((sequencep times-or-seq)
+                    (cl-loop for i in (append times-or-seq nil) ; seq->list
+                             with ld = (deferred:next)
+                             do
+                             (push ld items)
+                             (setq ld
+                                   (let ((i i))
+                                     (deferred:nextc ld (lambda (_x) (deferred:call-lambda func i)))))
+                             finally return ld)))))
       (setf (deferred-cancel rd)
             (lambda (x) (deferred:default-cancel x)
               (cl-loop for i in items
@@ -615,14 +608,14 @@ idle for MSEC millisecond."
 (defun deferred:parallel-main (alst)
   "[internal] Deferred alist implementation for `deferred:parallel'. "
   (deferred:message "PARALLEL<KEY . VALUE>" )
-  (lexical-let ((nd (deferred:new))
-                (len (length alst))
-                values)
+  (let ((nd (deferred:new))
+        (len (length alst))
+        values)
     (cl-loop for pair in
              (deferred:parallel-func-to-deferred alst)
              with cd                    ; current child deferred
              do
-             (lexical-let ((name (car pair)))
+             (let ((name (car pair)))
                (setq cd
                      (deferred:nextc (cdr pair)
                        (lambda (x)
@@ -647,9 +640,8 @@ idle for MSEC millisecond."
 (defun deferred:parallel-list (lst)
   "[internal] Deferred list implementation for `deferred:parallel'. "
   (deferred:message "PARALLEL<LIST>" )
-  (lexical-let*
-      ((pd (deferred:parallel-main (deferred:parallel-array-to-alist lst)))
-       (rd (deferred:nextc pd 'deferred:parallel-alist-to-array)))
+  (let* ((pd (deferred:parallel-main (deferred:parallel-array-to-alist lst)))
+         (rd (deferred:nextc pd 'deferred:parallel-alist-to-array)))
     (setf (deferred-cancel rd)
           (lambda (x) (deferred:default-cancel x)
             (deferred:cancel pd)))
@@ -668,14 +660,14 @@ functions."
 (defun deferred:earlier-main (alst)
   "[internal] Deferred alist implementation for `deferred:earlier'. "
   (deferred:message "EARLIER<KEY . VALUE>" )
-  (lexical-let ((nd (deferred:new))
-                (len (length alst))
-                value results)
+  (let ((nd (deferred:new))
+        (len (length alst))
+        value results)
     (cl-loop for pair in
              (deferred:parallel-func-to-deferred alst)
              with cd                    ; current child deferred
              do
-             (lexical-let ((name (car pair)))
+             (let ((name (car pair)))
                (setq cd
                      (deferred:nextc (cdr pair)
                        (lambda (x)
@@ -703,9 +695,8 @@ functions."
 (defun deferred:earlier-list (lst)
   "[internal] Deferred list implementation for `deferred:earlier'. "
   (deferred:message "EARLIER<LIST>" )
-  (lexical-let*
-      ((pd (deferred:earlier-main (deferred:parallel-array-to-alist lst)))
-       (rd (deferred:nextc pd (lambda (x) (cdr x)))))
+  (let* ((pd (deferred:earlier-main (deferred:parallel-array-to-alist lst)))
+         (rd (deferred:nextc pd (lambda (x) (cdr x)))))
     (setf (deferred-cancel rd)
           (lambda (x) (deferred:default-cancel x)
             (deferred:cancel pd)))
@@ -781,8 +772,7 @@ process."
 
 (defun deferred:process-gen (f command args)
   "[internal]"
-  (lexical-let
-      ((pd (deferred:process-buffer-gen f command args)) d)
+  (let ((pd (deferred:process-buffer-gen f command args)) d)
     (setq d (deferred:nextc pd
               (lambda (buf)
                 (prog1
@@ -797,14 +787,12 @@ process."
 (defun deferred:process-buffer-gen (f command args)
   "[internal]"
   (let ((d (deferred:next)) (uid (deferred:uid)))
-    (lexical-let
-        ((f f) (command command) (args args)
-         (proc-name (format "*deferred:*%s*:%s" command uid))
-         (buf-name (format " *deferred:*%s*:%s" command uid))
-         (pwd default-directory)
-         (env process-environment)
-         (con-type process-connection-type)
-         (nd (deferred:new)) proc-buf proc)
+    (let ((proc-name (format "*deferred:*%s*:%s" command uid))
+          (buf-name (format " *deferred:*%s*:%s" command uid))
+          (pwd default-directory)
+          (env process-environment)
+          (con-type process-connection-type)
+          (nd (deferred:new)) proc-buf proc)
       (deferred:nextc d
         (lambda (_x)
           (setq proc-buf (get-buffer-create buf-name))
@@ -863,18 +851,18 @@ process."
   ;; for url package
   ;; TODO: proxy, charaset
   ;; List of gloabl variables to preserve and restore before url-retrieve call
-  '(lexical-let ((url-global-variables '(url-request-data
-                                         url-request-method
-                                         url-request-extra-headers)))
+  '(let ((url-global-variables '(url-request-data
+                                 url-request-method
+                                 url-request-extra-headers)))
 
      (defun deferred:url-retrieve (url &optional cbargs silent inhibit-cookies)
        "A wrapper function for url-retrieve. The next deferred
 object receives the buffer object that URL will load
 into. Values of dynamically bound 'url-request-data', 'url-request-method' and
 'url-request-extra-headers' are passed to url-retrieve call."
-       (lexical-let ((nd (deferred:new)) (url url)
-                     (cbargs cbargs) (silent silent) (inhibit-cookies inhibit-cookies) buf
-                     (local-values (mapcar (lambda (symbol) (symbol-value symbol)) url-global-variables)))
+       (let ((nd (deferred:new))
+             buf
+             (local-values (mapcar (lambda (symbol) (symbol-value symbol)) url-global-variables)))
          (deferred:next
            (lambda (_x)
              (cl-progv url-global-variables local-values
@@ -884,7 +872,7 @@ into. Values of dynamically bound 'url-request-data', 'url-request-method' and
                           url (lambda (_xx) (deferred:post-task nd 'ok buf))
                           cbargs silent inhibit-cookies))
                  (error (deferred:post-task nd 'ng err)))
-             nil)))
+               nil)))
          (setf (deferred-cancel nd)
                (lambda (_x)
                  (when (buffer-live-p buf)
